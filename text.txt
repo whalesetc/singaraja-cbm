@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Singaraja CBM - Kalkulator CBM & Berat Logistik</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b1320;
+            color: #f1f5f9;
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="min-h-screen antialiased selection:bg-cyan-500 selection:text-slate-950">
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 hidden items-center gap-2.5 rounded-xl border border-cyan-400/40 bg-slate-900/95 px-4 py-3 text-sm font-medium text-cyan-200 shadow-2xl backdrop-blur">
+        <span class="h-2.5 w-2.5 rounded-full bg-cyan-400"></span>
+        <span id="toast-msg">Siap digunakan</span>
+    </div>
+
+    <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <!-- Top Header -->
+        <header class="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl lg:flex-row lg:items-center">
+            <div class="flex items-center gap-3.5">
+                <!-- Inline SVG Emblem 'S' + Box + Wave -->
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/30 bg-gradient-to-br from-cyan-500/20 via-blue-600/20 to-slate-900 shadow-lg shadow-cyan-950/50">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="h-9 w-9" aria-label="Logo Singaraja CBM">
+                        <defs>
+                            <linearGradient id="sGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#67e8f9" />
+                                <stop offset="100%" stop-color="#0284c7" />
+                            </linearGradient>
+                        </defs>
+                        <polygon points="32,5 56,19 56,45 32,59 8,45 8,19" fill="none" stroke="#38bdf8" stroke-width="2.5" opacity="0.7" />
+                        <path d="M40 16c-7.5-3-16 1-16 8.2 0 5.4 4.8 7.5 11.5 9.3 5.5 1.5 8.5 3.6 8.5 7.5 0 4.8-4.7 8-11.2 8-4.6 0-8.6-1.4-11.6-3.7" fill="none" stroke="url(#sGrad)" stroke-width="5.2" stroke-linecap="round" />
+                        <path d="M10 47c5-4.5 11.5-4.5 17 0s12 4.5 17 0 10-3.5 13 0" fill="none" stroke="#22d3ee" stroke-width="3.2" stroke-linecap="round" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-xl font-extrabold tracking-tight text-white sm:text-2xl">Singaraja CBM</h1>
+                        <span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-cyan-300">Logistik</span>
+                    </div>
+                    <p class="mt-0.5 text-xs text-slate-400 sm:text-sm">Hitung kubikasi (CBM), berat aktual, berat volumetrik, estimasi ongkir, dan rekomendasi kontainer.</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" onclick="loadSampleData()" class="rounded-xl border border-slate-700 bg-slate-800/90 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:border-cyan-500/50 hover:bg-slate-800 sm:text-sm">
+                    Contoh Data
+                </button>
+                <button type="button" onclick="copySummary()" class="rounded-xl border border-slate-700 bg-slate-800/90 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:border-cyan-500/50 hover:bg-slate-800 sm:text-sm">
+                    Salin Ringkasan
+                </button>
+                <button type="button" onclick="exportCSV()" class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20 sm:text-sm">
+                    Ekspor CSV
+                </button>
+                <button type="button" onclick="exportExcel()" class="rounded-xl border border-sky-500/30 bg-sky-500/10 px-3.5 py-2 text-xs font-semibold text-sky-300 transition hover:bg-sky-500/20 sm:text-sm">
+                    Unduh Excel
+                </button>
+                <button type="button" onclick="exportPDF()" class="rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3.5 py-2 text-xs font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-blue-500 sm:text-sm">
+                    Unduh PDF
+                </button>
+            </div>
+        </header>
+
+        <!-- Tarif & Estimasi Biaya -->
+        <section class="mb-6 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 shadow-lg">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-slate-400">Tarif per CBM (Rp / m³)</label>
+                    <input id="rate-cbm" type="number" min="0" step="any" value="0" oninput="saveAndRecalculate()" placeholder="Contoh: 1500000" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-slate-400">Tarif per Berat Tagih (Rp / kg)</label>
+                    <input id="rate-kg" type="number" min="0" step="any" value="0" oninput="saveAndRecalculate()" placeholder="Contoh: 5000" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none">
+                </div>
+                <div class="flex flex-col justify-center rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-2">
+                    <span class="text-xs font-medium text-cyan-300">Estimasi Biaya Kirim</span>
+                    <div id="est-cost" class="text-lg font-extrabold text-white">Rp 0</div>
+                    <span id="est-cost-note" class="text-[11px] text-slate-400">Berdasarkan CBM & berat tagih tertinggi</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings & Summary Cards -->
+        <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/90 p-4">
+                <span class="text-xs font-medium uppercase tracking-wider text-slate-400">Total Kubikasi</span>
+                <div id="total-cbm" class="mt-1 text-2xl font-extrabold text-cyan-300">0.0000 m³</div>
+                <p id="total-koli" class="mt-1 text-xs text-slate-400">0 koli dari 0 jenis barang</p>
+            </div>
+
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/90 p-4">
+                <span class="text-xs font-medium uppercase tracking-wider text-slate-400">Total Berat Aktual</span>
+                <div id="total-actual-weight" class="mt-1 text-2xl font-extrabold text-white">0.00 kg</div>
+                <p class="mt-1 text-xs text-slate-400">Akumulasi berat timbangan</p>
+            </div>
+
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/90 p-4">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-xs font-medium uppercase tracking-wider text-slate-400">Berat Volumetrik</span>
+                    <select id="vol-divisor" onchange="saveAndRecalculate()" class="rounded-lg border border-slate-700 bg-slate-800 px-2 py-0.5 text-xs font-semibold text-cyan-300 focus:border-cyan-400 focus:outline-none">
+                        <option value="5000" selected>Laut / Kargo /5000</option>
+                        <option value="6000">Standar /6000</option>
+                        <option value="4000">Udara Express /4000</option>
+                    </select>
+                </div>
+                <div id="total-vol-weight" class="mt-1 text-2xl font-extrabold text-amber-300">0.00 kg</div>
+                <p id="chargeable-weight" class="mt-1 text-xs text-emerald-300">Berat tagih: 0.00 kg</p>
+            </div>
+
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/90 p-4">
+                <span class="text-xs font-medium uppercase tracking-wider text-slate-400">Saran Kontainer</span>
+                <div id="container-rec" class="mt-1 text-lg font-extrabold text-emerald-300">LCL / Kubikasi Kecil</div>
+                <p id="container-note" class="mt-1 text-xs text-slate-400">Tambahkan barang untuk melihat estimasi</p>
+            </div>
+        </div>
+
+        <!-- Add Item Form -->
+        <section class="mb-6 rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-lg">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <h2 id="form-title" class="text-base font-bold text-white">Input Data Barang & Berat</h2>
+                <div class="flex items-center gap-2 text-xs text-slate-400">
+                    <span>Satuan dimensi:</span>
+                    <select id="dim-unit" onchange="saveAndRecalculate()" class="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 font-semibold text-cyan-300 focus:border-cyan-400 focus:outline-none">
+                        <option value="cm" selected>cm</option>
+                        <option value="m">meter (m)</option>
+                        <option value="mm">mm</option>
+                    </select>
+                </div>
+            </div>
+
+            <form id="item-form" onsubmit="addItem(event)" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
+                <div class="col-span-2 sm:col-span-3 lg:col-span-2">
+                    <label class="mb-1 block text-xs font-medium text-slate-400">Nama Barang</label>
+                    <input id="item-name" type="text" placeholder="Contoh: Head Unit / Speaker" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-slate-400">Panjang</label>
+                    <input id="item-l" type="number" step="any" min="0" placeholder="0" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-slate-400">Lebar</label>
+                    <input id="item-w" type="number" step="any" min="0" placeholder="0" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-slate-400">Tinggi</label>
+                    <input id="item-h" type="number" step="any" min="0" placeholder="0" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-slate-400">Jumlah Koli</label>
+                    <input id="item-qty" type="number" min="1" value="1" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-white focus:border-cyan-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-slate-400">Berat / Koli (kg)</label>
+                    <input id="item-weight" type="number" step="any" min="0" value="0" placeholder="0" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none">
+                </div>
+                <div class="col-span-2 flex flex-wrap items-end gap-2 sm:col-span-3 lg:col-span-7">
+                    <button id="submit-btn" type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-cyan-400">
+                        + Tambah Barang
+                    </button>
+                    <button id="cancel-edit-btn" type="button" onclick="cancelEdit()" class="hidden rounded-xl border border-slate-600 bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-700">
+                        Batal Edit
+                    </button>
+                    <button type="button" onclick="clearAllItems()" class="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20">
+                        Hapus Semua
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Items Table -->
+        <section class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/90 shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="border-b border-slate-800 bg-slate-950/70 text-xs uppercase tracking-wider text-slate-400">
+                        <tr>
+                            <th class="px-4 py-3.5">#</th>
+                            <th class="px-4 py-3.5">Barang</th>
+                            <th class="px-4 py-3.5">Dimensi</th>
+                            <th class="px-4 py-3.5 text-right">Koli</th>
+                            <th class="px-4 py-3.5 text-right">Berat/Koli</th>
+                            <th class="px-4 py-3.5 text-right">Total Berat</th>
+                            <th class="px-4 py-3.5 text-right">CBM / Koli</th>
+                            <th class="px-4 py-3.5 text-right">Total CBM</th>
+                            <th class="px-4 py-3.5 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-tbody" class="divide-y divide-slate-800/80">
+                        <tr>
+                            <td colspan="9" class="px-4 py-10 text-center text-slate-400">
+                                Belum ada barang. Klik <strong>+ Tambah Barang</strong> atau <strong>Contoh Data</strong> untuk mulai menghitung.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'singaraja_cbm_state_v1';
+        let items = [];
+        let editingId = null;
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            toastMsg.textContent = message;
+            toast.classList.remove('hidden');
+            toast.classList.add('flex');
+            clearTimeout(window.__toastTimer);
+            window.__toastTimer = setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.classList.remove('flex');
+            }, 2800);
+        }
+
+        function saveState() {
+            try {
+                const payload = {
+                    items,
+                    unit: document.getElementById('dim-unit').value,
+                    divisor: document.getElementById('vol-divisor').value,
+                    rateCbm: document.getElementById('rate-cbm').value,
+                    rateKg: document.getElementById('rate-kg').value
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+            } catch (err) {
+                // Abaikan jika penyimpanan lokal dibatasi
+            }
+        }
+
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                if (Array.isArray(data.items)) items = data.items;
+                if (data.unit) document.getElementById('dim-unit').value = data.unit;
+                if (data.divisor) document.getElementById('vol-divisor').value = data.divisor;
+                if (data.rateCbm !== undefined) document.getElementById('rate-cbm').value = data.rateCbm;
+                if (data.rateKg !== undefined) document.getElementById('rate-kg').value = data.rateKg;
+            } catch (err) {
+                items = [];
+            }
+        }
+
+        function saveAndRecalculate() {
+            saveState();
+            recalculate();
+        }
+
+        function toMeters(val, unit) {
+            const n = parseFloat(val) || 0;
+            if (unit === 'm') return n;
+            if (unit === 'mm') return n / 1000;
+            return n / 100; // cm
+        }
+
+        function toCm(val, unit) {
+            const n = parseFloat(val) || 0;
+            if (unit === 'cm') return n;
+            if (unit === 'm') return n * 100;
+            return n / 10; // mm
+        }
+
+        function resetFormInputs() {
+            document.getElementById('item-name').value = '';
+            document.getElementById('item-l').value = '';
+            document.getElementById('item-w').value = '';
+            document.getElementById('item-h').value = '';
+            document.getElementById('item-qty').value = '1';
+            document.getElementById('item-weight').value = '0';
+            editingId = null;
+            document.getElementById('form-title').textContent = 'Input Data Barang & Berat';
+            document.getElementById('submit-btn').textContent = '+ Tambah Barang';
+            document.getElementById('cancel-edit-btn').classList.add('hidden');
+        }
+
+        function addItem(e) {
+            e.preventDefault();
+            const rawName = document.getElementById('item-name').value.trim();
+            const name = rawName || `Barang #${items.length + 1}`;
+            const l = parseFloat(document.getElementById('item-l').value) || 0;
+            const w = parseFloat(document.getElementById('item-w').value) || 0;
+            const h = parseFloat(document.getElementById('item-h').value) || 0;
+            const qty = parseInt(document.getElementById('item-qty').value, 10) || 1;
+            const weightPerUnit = parseFloat(document.getElementById('item-weight').value) || 0;
+
+            if (editingId !== null) {
+                items = items.map(it => it.id === editingId ? { ...it, name, l, w, h, qty, weightPerUnit } : it);
+                resetFormInputs();
+                saveAndRecalculate();
+                showToast(`"${name}" diperbarui`);
+                return;
+            }
+
+            items.push({
+                id: Date.now() + Math.random(),
+                name,
+                l,
+                w,
+                h,
+                qty,
+                weightPerUnit
+            });
+
+            resetFormInputs();
+            document.getElementById('item-name').focus();
+            saveAndRecalculate();
+            showToast(`"${name}" ditambahkan`);
+        }
+
+        function editItem(id) {
+            const target = items.find(it => it.id === id);
+            if (!target) return;
+            editingId = id;
+            document.getElementById('item-name').value = target.name;
+            document.getElementById('item-l').value = target.l;
+            document.getElementById('item-w').value = target.w;
+            document.getElementById('item-h').value = target.h;
+            document.getElementById('item-qty').value = target.qty;
+            document.getElementById('item-weight').value = target.weightPerUnit;
+            document.getElementById('form-title').textContent = 'Edit Data Barang';
+            document.getElementById('submit-btn').textContent = 'Simpan Perubahan';
+            document.getElementById('cancel-edit-btn').classList.remove('hidden');
+            document.getElementById('item-name').focus();
+        }
+
+        function cancelEdit() {
+            resetFormInputs();
+            showToast('Edit dibatalkan');
+        }
+
+        function removeItem(id) {
+            if (editingId === id) resetFormInputs();
+            items = items.filter(it => it.id !== id);
+            saveAndRecalculate();
+            showToast('Barang dihapus');
+        }
+
+        function clearAllItems() {
+            if (!items.length) return;
+            items = [];
+            resetFormInputs();
+            saveAndRecalculate();
+            showToast('Semua data barang dibersihkan');
+        }
+
+        function loadSampleData() {
+            document.getElementById('dim-unit').value = 'cm';
+            document.getElementById('rate-cbm').value = '1500000';
+            document.getElementById('rate-kg').value = '5000';
+            items = [
+                { id: 1, name: 'Subwoofer Box 12 Inch', l: 60, w: 40, h: 35, qty: 4, weightPerUnit: 18.5 },
+                { id: 2, name: 'Power Amplifier 4ch', l: 45, w: 28, h: 10, qty: 10, weightPerUnit: 4.2 },
+                { id: 3, name: 'Peredam Suara Roll', l: 80, w: 50, h: 15, qty: 6, weightPerUnit: 12.0 }
+            ];
+            resetFormInputs();
+            saveAndRecalculate();
+            showToast('Contoh data Singaraja CBM dimuat');
+        }
+
+        function computeMetrics() {
+            const unit = document.getElementById('dim-unit').value;
+            const divisor = parseFloat(document.getElementById('vol-divisor').value) || 5000;
+            const rateCbm = parseFloat(document.getElementById('rate-cbm').value) || 0;
+            const rateKg = parseFloat(document.getElementById('rate-kg').value) || 0;
+
+            let totalCbm = 0;
+            let totalKoli = 0;
+            let totalActualWeight = 0;
+            let totalVolWeight = 0;
+
+            const rows = items.map((it, idx) => {
+                const lM = toMeters(it.l, unit);
+                const wM = toMeters(it.w, unit);
+                const hM = toMeters(it.h, unit);
+                const cbmPerKoli = lM * wM * hM;
+                const rowCbm = cbmPerKoli * it.qty;
+
+                const lCm = toCm(it.l, unit);
+                const wCm = toCm(it.w, unit);
+                const hCm = toCm(it.h, unit);
+                const volPerKoli = (lCm * wCm * hCm) / divisor;
+                const rowVolWeight = volPerKoli * it.qty;
+                const rowActualWeight = it.weightPerUnit * it.qty;
+
+                totalCbm += rowCbm;
+                totalKoli += it.qty;
+                totalActualWeight += rowActualWeight;
+                totalVolWeight += rowVolWeight;
+
+                return {
+                    id: it.id,
+                    no: idx + 1,
+                    name: it.name,
+                    dimLabel: `${it.l} × ${it.w} × ${it.h} ${unit}`,
+                    qty: it.qty,
+                    weightPerUnit: it.weightPerUnit,
+                    rowActualWeight,
+                    cbmPerKoli,
+                    rowCbm,
+                    rowVolWeight
+                };
+            });
+
+            const chargeableWeight = Math.max(totalActualWeight, totalVolWeight);
+            const costByCbm = totalCbm * rateCbm;
+            const costByKg = chargeableWeight * rateKg;
+            const estimatedCost = Math.max(costByCbm, costByKg);
+
+            return {
+                rows,
+                totalCbm,
+                totalKoli,
+                totalActualWeight,
+                totalVolWeight,
+                chargeableWeight,
+                rateCbm,
+                rateKg,
+                estimatedCost
+            };
+        }
+
+        function formatRupiah(amount) {
+            return 'Rp ' + Math.round(amount || 0).toLocaleString('id-ID');
+        }
+
+        function getContainerRecommendation(cbm) {
+            if (cbm <= 0) return { label: 'LCL / Kubikasi Kecil', note: 'Tambahkan barang untuk melihat estimasi' };
+            if (cbm < 15) return { label: 'LCL (Less Container Load)', note: 'Cocok kirim kubikasi parsial (< 15 m³)' };
+            if (cbm <= 28) return { label: 'Kontainer 20ft (~28 m³)', note: 'Kapasitas efektif umum 25–28 m³' };
+            if (cbm <= 58) return { label: 'Kontainer 40ft (~58 m³)', note: 'Kapasitas efektif umum 54–58 m³' };
+            return { label: 'Kontainer 40ft HC / Multi', note: 'Melebihi kapasitas 1 unit 40ft standar' };
+        }
+
+        function recalculate() {
+            const {
+                rows,
+                totalCbm,
+                totalKoli,
+                totalActualWeight,
+                totalVolWeight,
+                chargeableWeight,
+                rateCbm,
+                rateKg,
+                estimatedCost
+            } = computeMetrics();
+            const rec = getContainerRecommendation(totalCbm);
+
+            document.getElementById('total-cbm').textContent = `${totalCbm.toFixed(4)} m³`;
+            document.getElementById('total-koli').textContent = `${totalKoli} koli dari ${items.length} jenis barang`;
+            document.getElementById('total-actual-weight').textContent = `${totalActualWeight.toFixed(2)} kg`;
+            document.getElementById('total-vol-weight').textContent = `${totalVolWeight.toFixed(2)} kg`;
+            document.getElementById('chargeable-weight').textContent = `Berat tagih: ${chargeableWeight.toFixed(2)} kg`;
+            document.getElementById('container-rec').textContent = rec.label;
+            document.getElementById('container-note').textContent = rec.note;
+            document.getElementById('est-cost').textContent = formatRupiah(estimatedCost);
+
+            if (rateCbm > 0 || rateKg > 0) {
+                document.getElementById('est-cost-note').textContent = `CBM: ${formatRupiah(totalCbm * rateCbm)} | Kg: ${formatRupiah(chargeableWeight * rateKg)}`;
+            } else {
+                document.getElementById('est-cost-note').textContent = 'Isi tarif CBM atau tarif kg untuk estimasi';
+            }
+
+            const tbody = document.getElementById('items-tbody');
+            if (!rows.length) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="px-4 py-10 text-center text-slate-400">
+                            Belum ada barang. Klik <strong>+ Tambah Barang</strong> atau <strong>Contoh Data</strong> untuk mulai menghitung.
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = rows.map(r => `
+                <tr class="hover:bg-slate-800/40">
+                    <td class="px-4 py-3 text-slate-400">${r.no}</td>
+                    <td class="px-4 py-3 font-semibold text-white">${escapeHtml(r.name)}</td>
+                    <td class="px-4 py-3 text-slate-300">${r.dimLabel}</td>
+                    <td class="px-4 py-3 text-right text-slate-200">${r.qty}</td>
+                    <td class="px-4 py-3 text-right text-slate-300">${r.weightPerUnit.toFixed(2)} kg</td>
+                    <td class="px-4 py-3 text-right font-semibold text-white">${r.rowActualWeight.toFixed(2)} kg</td>
+                    <td class="px-4 py-3 text-right text-slate-300">${r.cbmPerKoli.toFixed(4)}</td>
+                    <td class="px-4 py-3 text-right font-bold text-cyan-300">${r.rowCbm.toFixed(4)} m³</td>
+                    <td class="px-4 py-3 text-center whitespace-nowrap">
+                        <button type="button" onclick="editItem(${r.id})" class="mr-1 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-500/20">
+                            Edit
+                        </button>
+                        <button type="button" onclick="removeItem(${r.id})" class="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20">
+                            Hapus
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        }
+
+        function copySummary() {
+            const { totalCbm, totalKoli, totalActualWeight, totalVolWeight, chargeableWeight, estimatedCost } = computeMetrics();
+            const rec = getContainerRecommendation(totalCbm);
+            const text = [
+                `*RINGKASAN SINGARAJA CBM*`,
+                `• Total Koli: ${totalKoli} koli (${items.length} jenis barang)`,
+                `• Total CBM: ${totalCbm.toFixed(4)} m³`,
+                `• Total Berat Aktual: ${totalActualWeight.toFixed(2)} kg`,
+                `• Berat Volumetrik: ${totalVolWeight.toFixed(2)} kg`,
+                `• Berat Tagih (Chargeable): ${chargeableWeight.toFixed(2)} kg`,
+                `• Estimasi Biaya: ${formatRupiah(estimatedCost)}`,
+                `• Rekomendasi: ${rec.label}`
+            ].join('\n');
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => showToast('Ringkasan disalin ke clipboard')).catch(() => fallbackCopy(text));
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            showToast('Ringkasan disalin');
+        }
+
+        function triggerDownload(content, filename, mimeType) {
+            try {
+                const blob = new Blob([content], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (err) {
+                showToast('Unduhan diblokir browser, buka file HTML langsung di browser');
+            }
+        }
+
+        function exportCSV() {
+            if (!items.length) return showToast('Tambahkan data barang terlebih dahulu');
+            const { rows, totalCbm, totalKoli, totalActualWeight, totalVolWeight, chargeableWeight, estimatedCost } = computeMetrics();
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const lines = [
+                ['No', 'Nama Barang', 'Dimensi', 'Koli', 'Berat/Koli (kg)', 'Total Berat Aktual (kg)', 'CBM/Koli', 'Total CBM (m3)', 'Berat Volumetrik (kg)'].join(',')
+            ];
+            rows.forEach(r => {
+                lines.push([
+                    r.no,
+                    `"${r.name.replace(/"/g, '""')}"`,
+                    `"${r.dimLabel}"`,
+                    r.qty,
+                    r.weightPerUnit.toFixed(2),
+                    r.rowActualWeight.toFixed(2),
+                    r.cbmPerKoli.toFixed(4),
+                    r.rowCbm.toFixed(4),
+                    r.rowVolWeight.toFixed(2)
+                ].join(','));
+            });
+            lines.push('');
+            lines.push(`Total Koli,${totalKoli}`);
+            lines.push(`Total CBM (m3),${totalCbm.toFixed(4)}`);
+            lines.push(`Total Berat Aktual (kg),${totalActualWeight.toFixed(2)}`);
+            lines.push(`Total Berat Volumetrik (kg),${totalVolWeight.toFixed(2)}`);
+            lines.push(`Berat Tagih (kg),${chargeableWeight.toFixed(2)}`);
+            lines.push(`Estimasi Biaya (Rp),${Math.round(estimatedCost)}`);
+
+            triggerDownload(lines.join('\n'), `Singaraja_CBM_${dateStr}.csv`, 'text/csv;charset=utf-8;');
+            showToast('File CSV berhasil diunduh');
+        }
+
+        function exportExcel() {
+            if (!items.length) return showToast('Tambahkan data barang terlebih dahulu');
+            const { rows, totalCbm, totalKoli, totalActualWeight, totalVolWeight, chargeableWeight, estimatedCost } = computeMetrics();
+            const rec = getContainerRecommendation(totalCbm);
+            const dateStr = new Date().toISOString().slice(0, 10);
+
+            const bodyRows = rows.map(r => `
+                <tr>
+                    <td>${r.no}</td>
+                    <td>${escapeHtml(r.name)}</td>
+                    <td>${r.dimLabel}</td>
+                    <td align="right">${r.qty}</td>
+                    <td align="right">${r.weightPerUnit.toFixed(2)}</td>
+                    <td align="right">${r.rowActualWeight.toFixed(2)}</td>
+                    <td align="right">${r.cbmPerKoli.toFixed(4)}</td>
+                    <td align="right">${r.rowCbm.toFixed(4)}</td>
+                    <td align="right">${r.rowVolWeight.toFixed(2)}</td>
+                </tr>
+            `).join('');
+
+            const xlsHtml = `
+                <html><head><meta charset="UTF-8"></head><body>
+                <h3>Laporan Perhitungan Singaraja CBM (${dateStr})</h3>
+                <table border="1" cellpadding="6" cellspacing="0">
+                    <thead>
+                        <tr style="background:#0f172a;color:#ffffff;">
+                            <th>No</th><th>Nama Barang</th><th>Dimensi</th><th>Koli</th>
+                            <th>Berat/Koli (kg)</th><th>Total Berat (kg)</th><th>CBM/Koli</th>
+                            <th>Total CBM (m³)</th><th>Berat Vol. (kg)</th>
+                        </tr>
+                    </thead>
+                    <tbody>${bodyRows}</tbody>
+                    <tfoot>
+                        <tr style="font-weight:bold;background:#e2e8f0;">
+                            <td colspan="3">TOTAL</td>
+                            <td align="right">${totalKoli}</td>
+                            <td>-</td>
+                            <td align="right">${totalActualWeight.toFixed(2)}</td>
+                            <td>-</td>
+                            <td align="right">${totalCbm.toFixed(4)}</td>
+                            <td align="right">${totalVolWeight.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <p><strong>Berat Tagih (Chargeable):</strong> ${chargeableWeight.toFixed(2)} kg | <strong>Estimasi Biaya:</strong> ${formatRupiah(estimatedCost)} | <strong>Rekomendasi:</strong> ${rec.label}</p>
+                </body></html>`;
+
+            triggerDownload(xlsHtml, `Singaraja_CBM_${dateStr}.xls`, 'application/vnd.ms-excel');
+            showToast('File Excel (.xls) berhasil diunduh');
+        }
+
+        function exportPDF() {
+            if (!items.length) return showToast('Tambahkan data barang terlebih dahulu');
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                return showToast('Pustaka PDF sedang dimuat, coba lagi');
+            }
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'landscape' });
+                const { rows, totalCbm, totalKoli, totalActualWeight, totalVolWeight, chargeableWeight, estimatedCost } = computeMetrics();
+                const rec = getContainerRecommendation(totalCbm);
+                const dateStr = new Date().toISOString().slice(0, 10);
+
+                doc.setFontSize(15);
+                doc.text(`SINGARAJA CBM - LAPORAN PERHITUNGAN (${dateStr})`, 14, 15);
+                doc.setFontSize(10);
+                doc.text(`Total Koli: ${totalKoli}  |  Total CBM: ${totalCbm.toFixed(4)} m3  |  Berat Aktual: ${totalActualWeight.toFixed(2)} kg  |  Berat Vol: ${totalVolWeight.toFixed(2)} kg  |  Berat Tagih: ${chargeableWeight.toFixed(2)} kg`, 14, 22);
+                doc.text(`Estimasi Biaya: ${formatRupiah(estimatedCost)}  |  Rekomendasi Kontainer: ${rec.label}`, 14, 28);
+
+                doc.autoTable({
+                    startY: 33,
+                    head: [['No', 'Nama Barang', 'Dimensi', 'Koli', 'Berat/Koli (kg)', 'Total Berat (kg)', 'CBM/Koli', 'Total CBM (m3)', 'Berat Vol. (kg)']],
+                    body: rows.map(r => [
+                        r.no,
+                        r.name,
+                        r.dimLabel,
+                        r.qty,
+                        r.weightPerUnit.toFixed(2),
+                        r.rowActualWeight.toFixed(2),
+                        r.cbmPerKoli.toFixed(4),
+                        r.rowCbm.toFixed(4),
+                        r.rowVolWeight.toFixed(2)
+                    ]),
+                    styles: { fontSize: 9 },
+                    headStyles: { fillColor: [14, 116, 144] }
+                });
+
+                doc.save(`Singaraja_CBM_${dateStr}.pdf`);
+                showToast('File PDF berhasil diunduh');
+            } catch (err) {
+                showToast('Gagal membuat PDF di browser ini');
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            recalculate();
+        });
+    </script>
+</body>
+</html>
