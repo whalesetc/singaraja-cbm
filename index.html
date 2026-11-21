@@ -255,6 +255,20 @@
             return sanitizeDateStr(el ? el.value : '');
         }
 
+        function formatShortDateDmy(isoDate) {
+            const safe = sanitizeDateStr(isoDate);
+            const [yyyy, mm, dd] = safe.split('-');
+            const yy = yyyy.slice(-2);
+            return `${dd}-${mm}-${yy}`;
+        }
+
+        function buildExportFilename(totalKoli, ext) {
+            const dateStr = getExportDateLabel();
+            const shortDate = formatShortDateDmy(dateStr);
+            const koliCount = parseInt(totalKoli, 10) || 0;
+            return `SR-${koliCount} KOLI-${shortDate}.${ext}`;
+        }
+
         function onBatchDateChange() {
             const newDate = getActiveBatchDate();
             document.getElementById('batch-date').value = newDate;
@@ -636,6 +650,7 @@
             if (!items.length) return showToast('Tambahkan data barang terlebih dahulu');
             const { rows, totalCbm, totalKoli, totalActualWeight, totalVolWeight, chargeableWeight, estimatedCost } = computeMetrics();
             const dateStr = getExportDateLabel();
+            const filename = buildExportFilename(totalKoli, 'csv');
             const lines = [
                 ['No', 'Nama Barang', 'Tanggal Masuk', 'Dimensi', 'Koli', 'Berat/Koli (kg)', 'Total Berat Aktual (kg)', 'CBM/Koli', 'Total CBM (m3)', 'Berat Volumetrik (kg)'].join(',')
             ];
@@ -662,8 +677,8 @@
             lines.push(`Berat Tagih (kg),${chargeableWeight.toFixed(2)}`);
             lines.push(`Estimasi Biaya (Rp),${Math.round(estimatedCost)}`);
 
-            triggerDownload(lines.join('\n'), `Singaraja_CBM_${dateStr}.csv`, 'text/csv;charset=utf-8;');
-            showToast(`File CSV (${dateStr}) berhasil diunduh`);
+            triggerDownload(lines.join('\n'), filename, 'text/csv;charset=utf-8;');
+            showToast(`File ${filename} berhasil diunduh`);
         }
 
         function exportExcel() {
@@ -671,6 +686,7 @@
             const { rows, totalCbm, totalKoli, totalActualWeight, totalVolWeight, chargeableWeight, estimatedCost } = computeMetrics();
             const rec = getContainerRecommendation(totalCbm);
             const dateStr = getExportDateLabel();
+            const filename = buildExportFilename(totalKoli, 'xls');
 
             const bodyRows = rows.map(r => `
                 <tr>
@@ -714,8 +730,8 @@
                 <p><strong>Tanggal Masuk:</strong> ${dateStr} | <strong>Berat Tagih (Chargeable):</strong> ${chargeableWeight.toFixed(2)} kg | <strong>Estimasi Biaya:</strong> ${formatRupiah(estimatedCost)} | <strong>Rekomendasi:</strong> ${rec.label}</p>
                 </body></html>`;
 
-            triggerDownload(xlsHtml, `Singaraja_CBM_${dateStr}.xls`, 'application/vnd.ms-excel');
-            showToast(`File Excel (${dateStr}) berhasil diunduh`);
+            triggerDownload(xlsHtml, filename, 'application/vnd.ms-excel');
+            showToast(`File ${filename} berhasil diunduh`);
         }
 
         function exportPDF() {
@@ -729,6 +745,7 @@
                 const { rows, totalCbm, totalKoli, totalActualWeight, totalVolWeight, chargeableWeight, estimatedCost } = computeMetrics();
                 const rec = getContainerRecommendation(totalCbm);
                 const dateStr = getExportDateLabel();
+                const filename = buildExportFilename(totalKoli, 'pdf');
 
                 doc.setFontSize(15);
                 doc.setFont(undefined, 'bold');
@@ -813,8 +830,8 @@
                 doc.setTextColor(30, 41, 59);
                 doc.text(`Estimasi Biaya: ${formatRupiah(estimatedCost)}   |   Saran Kontainer: ${rec.label}`, 18, boxY + 24);
 
-                doc.save(`Singaraja_CBM_${dateStr}.pdf`);
-                showToast(`File PDF (${dateStr}) berhasil diunduh`);
+                doc.save(filename);
+                showToast(`File ${filename} berhasil diunduh`);
             } catch (err) {
                 showToast('Gagal membuat PDF di browser ini');
             }
