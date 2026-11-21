@@ -32,6 +32,10 @@
         input[type="number"] {
             -moz-appearance: textfield;
         }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.8);
+            cursor: pointer;
+        }
     </style>
 </head>
 <body class="min-h-screen antialiased selection:bg-cyan-500 selection:text-slate-950">
@@ -154,10 +158,14 @@
                 </div>
             </div>
 
-            <form id="item-form" onsubmit="addItem(event)" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
-                <div class="col-span-2 sm:col-span-3 lg:col-span-2">
+            <form id="item-form" onsubmit="addItem(event)" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-8">
+                <div class="col-span-2 sm:col-span-2 lg:col-span-2">
                     <label class="mb-1 block text-xs font-medium text-slate-400">Nama Barang</label>
                     <input id="item-name" type="text" placeholder="Contoh: Head Unit / Speaker" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none">
+                </div>
+                <div class="col-span-2 sm:col-span-1 lg:col-span-1">
+                    <label class="mb-1 block text-xs font-medium text-slate-400">Tanggal Masuk</label>
+                    <input id="item-date" type="date" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-white focus:border-cyan-400 focus:outline-none">
                 </div>
                 <div>
                     <label class="mb-1 block text-xs font-medium text-slate-400">Panjang</label>
@@ -179,7 +187,7 @@
                     <label class="mb-1 block text-xs font-medium text-slate-400">Berat / Koli (kg)</label>
                     <input id="item-weight" type="number" step="any" min="0" value="0" placeholder="0" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none">
                 </div>
-                <div class="col-span-2 flex flex-wrap items-end gap-2 sm:col-span-3 lg:col-span-7">
+                <div class="col-span-2 flex flex-wrap items-end gap-2 sm:col-span-3 lg:col-span-8">
                     <button id="submit-btn" type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-cyan-400">
                         + Tambah Barang
                     </button>
@@ -201,6 +209,7 @@
                         <tr>
                             <th class="px-4 py-3.5">#</th>
                             <th class="px-4 py-3.5">Barang</th>
+                            <th class="px-4 py-3.5">Tgl Masuk</th>
                             <th class="px-4 py-3.5">Dimensi</th>
                             <th class="px-4 py-3.5 text-right">Koli</th>
                             <th class="px-4 py-3.5 text-right">Berat/Koli</th>
@@ -212,7 +221,7 @@
                     </thead>
                     <tbody id="items-tbody" class="divide-y divide-slate-800/80">
                         <tr>
-                            <td colspan="9" class="px-4 py-10 text-center text-slate-400">
+                            <td colspan="10" class="px-4 py-10 text-center text-slate-400">
                                 Belum ada barang. Klik <strong>+ Tambah Barang</strong> atau <strong>Contoh Data</strong> untuk mulai menghitung.
                             </td>
                         </tr>
@@ -226,6 +235,20 @@
         const STORAGE_KEY = 'singaraja_cbm_state_v1';
         let items = [];
         let editingId = null;
+
+        function getTodayIsoDate() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function sanitizeDateStr(val) {
+            if (!val) return getTodayIsoDate();
+            const clean = String(val).trim();
+            return /^\d{4}-\d{2}-\d{2}$/.test(clean) ? clean : getTodayIsoDate();
+        }
 
         function showToast(message) {
             const toast = document.getElementById('toast');
@@ -260,7 +283,12 @@
                 const raw = localStorage.getItem(STORAGE_KEY);
                 if (!raw) return;
                 const data = JSON.parse(raw);
-                if (Array.isArray(data.items)) items = data.items;
+                if (Array.isArray(data.items)) {
+                    items = data.items.map(it => ({
+                        ...it,
+                        entryDate: sanitizeDateStr(it.entryDate)
+                    }));
+                }
                 if (data.unit) document.getElementById('dim-unit').value = data.unit;
                 if (data.divisor) document.getElementById('vol-divisor').value = data.divisor;
                 if (data.rateCbm !== undefined) document.getElementById('rate-cbm').value = data.rateCbm;
@@ -289,8 +317,10 @@
             return n / 10; // mm
         }
 
-        function resetFormInputs() {
+        function resetFormInputs(keepDate = false) {
+            const currentDate = document.getElementById('item-date').value;
             document.getElementById('item-name').value = '';
+            document.getElementById('item-date').value = keepDate && currentDate ? sanitizeDateStr(currentDate) : getTodayIsoDate();
             document.getElementById('item-l').value = '';
             document.getElementById('item-w').value = '';
             document.getElementById('item-h').value = '';
@@ -306,6 +336,7 @@
             e.preventDefault();
             const rawName = document.getElementById('item-name').value.trim();
             const name = rawName || `Barang #${items.length + 1}`;
+            const entryDate = sanitizeDateStr(document.getElementById('item-date').value);
             const l = parseFloat(document.getElementById('item-l').value) || 0;
             const w = parseFloat(document.getElementById('item-w').value) || 0;
             const h = parseFloat(document.getElementById('item-h').value) || 0;
@@ -313,8 +344,8 @@
             const weightPerUnit = parseFloat(document.getElementById('item-weight').value) || 0;
 
             if (editingId !== null) {
-                items = items.map(it => it.id === editingId ? { ...it, name, l, w, h, qty, weightPerUnit } : it);
-                resetFormInputs();
+                items = items.map(it => it.id === editingId ? { ...it, name, entryDate, l, w, h, qty, weightPerUnit } : it);
+                resetFormInputs(false);
                 saveAndRecalculate();
                 showToast(`"${name}" diperbarui`);
                 return;
@@ -323,6 +354,7 @@
             items.push({
                 id: Date.now() + Math.random(),
                 name,
+                entryDate,
                 l,
                 w,
                 h,
@@ -330,10 +362,10 @@
                 weightPerUnit
             });
 
-            resetFormInputs();
+            resetFormInputs(true);
             document.getElementById('item-name').focus();
             saveAndRecalculate();
-            showToast(`"${name}" ditambahkan`);
+            showToast(`"${name}" (${entryDate}) ditambahkan`);
         }
 
         function editItem(id) {
@@ -341,6 +373,7 @@
             if (!target) return;
             editingId = id;
             document.getElementById('item-name').value = target.name;
+            document.getElementById('item-date').value = sanitizeDateStr(target.entryDate);
             document.getElementById('item-l').value = target.l;
             document.getElementById('item-w').value = target.w;
             document.getElementById('item-h').value = target.h;
@@ -353,12 +386,12 @@
         }
 
         function cancelEdit() {
-            resetFormInputs();
+            resetFormInputs(false);
             showToast('Edit dibatalkan');
         }
 
         function removeItem(id) {
-            if (editingId === id) resetFormInputs();
+            if (editingId === id) resetFormInputs(false);
             items = items.filter(it => it.id !== id);
             saveAndRecalculate();
             showToast('Barang dihapus');
@@ -367,7 +400,7 @@
         function clearAllItems() {
             if (!items.length) return;
             items = [];
-            resetFormInputs();
+            resetFormInputs(false);
             saveAndRecalculate();
             showToast('Semua data barang dibersihkan');
         }
@@ -376,14 +409,27 @@
             document.getElementById('dim-unit').value = 'cm';
             document.getElementById('rate-cbm').value = '1500000';
             document.getElementById('rate-kg').value = '5000';
+            const sampleDate = sanitizeDateStr(document.getElementById('item-date').value);
             items = [
-                { id: 1, name: 'Subwoofer Box 12 Inch', l: 60, w: 40, h: 35, qty: 4, weightPerUnit: 18.5 },
-                { id: 2, name: 'Power Amplifier 4ch', l: 45, w: 28, h: 10, qty: 10, weightPerUnit: 4.2 },
-                { id: 3, name: 'Peredam Suara Roll', l: 80, w: 50, h: 15, qty: 6, weightPerUnit: 12.0 }
+                { id: 1, name: 'Subwoofer Box 12 Inch', entryDate: sampleDate, l: 60, w: 40, h: 35, qty: 4, weightPerUnit: 18.5 },
+                { id: 2, name: 'Power Amplifier 4ch', entryDate: sampleDate, l: 45, w: 28, h: 10, qty: 10, weightPerUnit: 4.2 },
+                { id: 3, name: 'Peredam Suara Roll', entryDate: sampleDate, l: 80, w: 50, h: 15, qty: 6, weightPerUnit: 12.0 }
             ];
-            resetFormInputs();
+            resetFormInputs(false);
             saveAndRecalculate();
             showToast('Contoh data Singaraja CBM dimuat');
+        }
+
+        function getExportDateLabel() {
+            const dates = items
+                .map(it => sanitizeDateStr(it.entryDate))
+                .filter(Boolean)
+                .sort();
+            if (!dates.length) {
+                const inputDate = document.getElementById('item-date').value;
+                return sanitizeDateStr(inputDate);
+            }
+            return dates[dates.length - 1];
         }
 
         function computeMetrics() {
@@ -420,6 +466,7 @@
                     id: it.id,
                     no: idx + 1,
                     name: it.name,
+                    entryDate: sanitizeDateStr(it.entryDate),
                     dimLabel: `${it.l} × ${it.w} × ${it.h} ${unit}`,
                     qty: it.qty,
                     weightPerUnit: it.weightPerUnit,
@@ -493,7 +540,7 @@
             if (!rows.length) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="9" class="px-4 py-10 text-center text-slate-400">
+                        <td colspan="10" class="px-4 py-10 text-center text-slate-400">
                             Belum ada barang. Klik <strong>+ Tambah Barang</strong> atau <strong>Contoh Data</strong> untuk mulai menghitung.
                         </td>
                     </tr>`;
@@ -504,6 +551,7 @@
                 <tr class="hover:bg-slate-800/40">
                     <td class="px-4 py-3 text-slate-400">${r.no}</td>
                     <td class="px-4 py-3 font-semibold text-white">${escapeHtml(r.name)}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-cyan-200">${r.entryDate}</td>
                     <td class="px-4 py-3 text-slate-300">${r.dimLabel}</td>
                     <td class="px-4 py-3 text-right text-slate-200">${r.qty}</td>
                     <td class="px-4 py-3 text-right text-slate-300">${r.weightPerUnit.toFixed(2)} kg</td>
@@ -529,8 +577,9 @@
         function copySummary() {
             const { totalCbm, totalKoli, totalActualWeight, totalVolWeight, chargeableWeight, estimatedCost } = computeMetrics();
             const rec = getContainerRecommendation(totalCbm);
+            const dateStr = getExportDateLabel();
             const text = [
-                `*RINGKASAN SINGARAJA CBM*`,
+                `*RINGKASAN SINGARAJA CBM (${dateStr})*`,
                 `• Total Koli: ${totalKoli} koli (${items.length} jenis barang)`,
                 `• Total CBM: ${totalCbm.toFixed(4)} m³`,
                 `• Total Berat Aktual: ${totalActualWeight.toFixed(2)} kg`,
@@ -576,14 +625,15 @@
         function exportCSV() {
             if (!items.length) return showToast('Tambahkan data barang terlebih dahulu');
             const { rows, totalCbm, totalKoli, totalActualWeight, totalVolWeight, chargeableWeight, estimatedCost } = computeMetrics();
-            const dateStr = new Date().toISOString().slice(0, 10);
+            const dateStr = getExportDateLabel();
             const lines = [
-                ['No', 'Nama Barang', 'Dimensi', 'Koli', 'Berat/Koli (kg)', 'Total Berat Aktual (kg)', 'CBM/Koli', 'Total CBM (m3)', 'Berat Volumetrik (kg)'].join(',')
+                ['No', 'Nama Barang', 'Tanggal Masuk', 'Dimensi', 'Koli', 'Berat/Koli (kg)', 'Total Berat Aktual (kg)', 'CBM/Koli', 'Total CBM (m3)', 'Berat Volumetrik (kg)'].join(',')
             ];
             rows.forEach(r => {
                 lines.push([
                     r.no,
                     `"${r.name.replace(/"/g, '""')}"`,
+                    r.entryDate,
                     `"${r.dimLabel}"`,
                     r.qty,
                     r.weightPerUnit.toFixed(2),
@@ -594,6 +644,7 @@
                 ].join(','));
             });
             lines.push('');
+            lines.push(`Tanggal Barang Masuk,${dateStr}`);
             lines.push(`Total Koli,${totalKoli}`);
             lines.push(`Total CBM (m3),${totalCbm.toFixed(4)}`);
             lines.push(`Total Berat Aktual (kg),${totalActualWeight.toFixed(2)}`);
@@ -602,19 +653,20 @@
             lines.push(`Estimasi Biaya (Rp),${Math.round(estimatedCost)}`);
 
             triggerDownload(lines.join('\n'), `Singaraja_CBM_${dateStr}.csv`, 'text/csv;charset=utf-8;');
-            showToast('File CSV berhasil diunduh');
+            showToast(`File CSV (${dateStr}) berhasil diunduh`);
         }
 
         function exportExcel() {
             if (!items.length) return showToast('Tambahkan data barang terlebih dahulu');
             const { rows, totalCbm, totalKoli, totalActualWeight, totalVolWeight, chargeableWeight, estimatedCost } = computeMetrics();
             const rec = getContainerRecommendation(totalCbm);
-            const dateStr = new Date().toISOString().slice(0, 10);
+            const dateStr = getExportDateLabel();
 
             const bodyRows = rows.map(r => `
                 <tr>
                     <td>${r.no}</td>
                     <td>${escapeHtml(r.name)}</td>
+                    <td>${r.entryDate}</td>
                     <td>${r.dimLabel}</td>
                     <td align="right">${r.qty}</td>
                     <td align="right">${r.weightPerUnit.toFixed(2)}</td>
@@ -627,11 +679,11 @@
 
             const xlsHtml = `
                 <html><head><meta charset="UTF-8"></head><body>
-                <h3>Laporan Perhitungan Singaraja CBM (${dateStr})</h3>
+                <h3>Laporan Perhitungan Singaraja CBM - Tgl Masuk: ${dateStr}</h3>
                 <table border="1" cellpadding="6" cellspacing="0">
                     <thead>
                         <tr style="background:#0f172a;color:#ffffff;">
-                            <th>No</th><th>Nama Barang</th><th>Dimensi</th><th>Koli</th>
+                            <th>No</th><th>Nama Barang</th><th>Tgl Masuk</th><th>Dimensi</th><th>Koli</th>
                             <th>Berat/Koli (kg)</th><th>Total Berat (kg)</th><th>CBM/Koli</th>
                             <th>Total CBM (m³)</th><th>Berat Vol. (kg)</th>
                         </tr>
@@ -639,7 +691,7 @@
                     <tbody>${bodyRows}</tbody>
                     <tfoot>
                         <tr style="font-weight:bold;background:#e2e8f0;">
-                            <td colspan="3">TOTAL</td>
+                            <td colspan="4">TOTAL</td>
                             <td align="right">${totalKoli}</td>
                             <td>-</td>
                             <td align="right">${totalActualWeight.toFixed(2)}</td>
@@ -649,11 +701,11 @@
                         </tr>
                     </tfoot>
                 </table>
-                <p><strong>Berat Tagih (Chargeable):</strong> ${chargeableWeight.toFixed(2)} kg | <strong>Estimasi Biaya:</strong> ${formatRupiah(estimatedCost)} | <strong>Rekomendasi:</strong> ${rec.label}</p>
+                <p><strong>Tanggal Masuk:</strong> ${dateStr} | <strong>Berat Tagih (Chargeable):</strong> ${chargeableWeight.toFixed(2)} kg | <strong>Estimasi Biaya:</strong> ${formatRupiah(estimatedCost)} | <strong>Rekomendasi:</strong> ${rec.label}</p>
                 </body></html>`;
 
             triggerDownload(xlsHtml, `Singaraja_CBM_${dateStr}.xls`, 'application/vnd.ms-excel');
-            showToast('File Excel (.xls) berhasil diunduh');
+            showToast(`File Excel (${dateStr}) berhasil diunduh`);
         }
 
         function exportPDF() {
@@ -666,20 +718,21 @@
                 const doc = new jsPDF({ orientation: 'landscape' });
                 const { rows, totalCbm, totalKoli, totalActualWeight, totalVolWeight, chargeableWeight, estimatedCost } = computeMetrics();
                 const rec = getContainerRecommendation(totalCbm);
-                const dateStr = new Date().toISOString().slice(0, 10);
+                const dateStr = getExportDateLabel();
 
                 doc.setFontSize(15);
-                doc.text(`SINGARAJA CBM - LAPORAN PERHITUNGAN (${dateStr})`, 14, 15);
+                doc.text(`SINGARAJA CBM - LAPORAN PERHITUNGAN (TGL MASUK: ${dateStr})`, 14, 15);
                 doc.setFontSize(10);
                 doc.text(`Total Koli: ${totalKoli}  |  Total CBM: ${totalCbm.toFixed(4)} m3  |  Berat Aktual: ${totalActualWeight.toFixed(2)} kg  |  Berat Vol: ${totalVolWeight.toFixed(2)} kg  |  Berat Tagih: ${chargeableWeight.toFixed(2)} kg`, 14, 22);
                 doc.text(`Estimasi Biaya: ${formatRupiah(estimatedCost)}  |  Rekomendasi Kontainer: ${rec.label}`, 14, 28);
 
                 doc.autoTable({
                     startY: 33,
-                    head: [['No', 'Nama Barang', 'Dimensi', 'Koli', 'Berat/Koli (kg)', 'Total Berat (kg)', 'CBM/Koli', 'Total CBM (m3)', 'Berat Vol. (kg)']],
+                    head: [['No', 'Nama Barang', 'Tgl Masuk', 'Dimensi', 'Koli', 'Berat/Koli (kg)', 'Total Berat (kg)', 'CBM/Koli', 'Total CBM (m3)', 'Berat Vol. (kg)']],
                     body: rows.map(r => [
                         r.no,
                         r.name,
+                        r.entryDate,
                         r.dimLabel,
                         r.qty,
                         r.weightPerUnit.toFixed(2),
@@ -693,7 +746,7 @@
                 });
 
                 doc.save(`Singaraja_CBM_${dateStr}.pdf`);
-                showToast('File PDF berhasil diunduh');
+                showToast(`File PDF (${dateStr}) berhasil diunduh`);
             } catch (err) {
                 showToast('Gagal membuat PDF di browser ini');
             }
@@ -706,6 +759,7 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('item-date').value = getTodayIsoDate();
             loadState();
             recalculate();
         });
