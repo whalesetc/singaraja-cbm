@@ -736,24 +736,66 @@
                 doc.text(`Total Koli: ${totalKoli}  |  Total CBM: ${totalCbm.toFixed(4)} m3  |  Berat Aktual: ${totalActualWeight.toFixed(2)} kg  |  Berat Vol: ${totalVolWeight.toFixed(2)} kg  |  Berat Tagih: ${chargeableWeight.toFixed(2)} kg`, 14, 22);
                 doc.text(`Estimasi Biaya: ${formatRupiah(estimatedCost)}  |  Rekomendasi Kontainer: ${rec.label}`, 14, 28);
 
+                const tableBody = rows.map(r => [
+                    r.no,
+                    r.name,
+                    r.entryDate,
+                    r.dimLabel,
+                    r.qty,
+                    r.weightPerUnit.toFixed(2),
+                    r.rowActualWeight.toFixed(2),
+                    r.cbmPerKoli.toFixed(4),
+                    r.rowCbm.toFixed(4),
+                    r.rowVolWeight.toFixed(2)
+                ]);
+
+                tableBody.push([
+                    '',
+                    'TOTAL',
+                    dateStr,
+                    `${items.length} jenis`,
+                    totalKoli,
+                    '-',
+                    totalActualWeight.toFixed(2),
+                    '-',
+                    totalCbm.toFixed(4),
+                    totalVolWeight.toFixed(2)
+                ]);
+
                 doc.autoTable({
                     startY: 33,
                     head: [['No', 'Nama Barang', 'Tgl Masuk', 'Dimensi', 'Koli', 'Berat/Koli (kg)', 'Total Berat (kg)', 'CBM/Koli', 'Total CBM (m3)', 'Berat Vol. (kg)']],
-                    body: rows.map(r => [
-                        r.no,
-                        r.name,
-                        r.entryDate,
-                        r.dimLabel,
-                        r.qty,
-                        r.weightPerUnit.toFixed(2),
-                        r.rowActualWeight.toFixed(2),
-                        r.cbmPerKoli.toFixed(4),
-                        r.rowCbm.toFixed(4),
-                        r.rowVolWeight.toFixed(2)
-                    ]),
+                    body: tableBody,
                     styles: { fontSize: 9 },
-                    headStyles: { fillColor: [14, 116, 144] }
+                    headStyles: { fillColor: [14, 116, 144] },
+                    didParseCell: (data) => {
+                        if (data.row.index === tableBody.length - 1) {
+                            data.cell.styles.fontStyle = 'bold';
+                            data.cell.styles.fillColor = [226, 232, 240];
+                            data.cell.styles.textColor = [15, 23, 42];
+                        }
+                    }
                 });
+
+                const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 8 : 110;
+                const boxY = finalY + 18 > doc.internal.pageSize.getHeight() - 10 ? 20 : finalY;
+                if (boxY === 20) {
+                    doc.addPage();
+                }
+
+                doc.setDrawColor(14, 116, 144);
+                doc.setFillColor(240, 249, 255);
+                doc.roundedRect(14, boxY, 269, 24, 3, 3, 'FD');
+
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(15, 23, 42);
+                doc.text(`RINCIAN TOTAL (TGL MASUK: ${dateStr})`, 18, boxY + 6);
+
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(9.5);
+                doc.text(`Total CBM: ${totalCbm.toFixed(4)} m3   |   Total Berat Aktual: ${totalActualWeight.toFixed(2)} kg   |   Total Berat Volumetrik: ${totalVolWeight.toFixed(2)} kg`, 18, boxY + 12.5);
+                doc.text(`Berat Tagih (Chargeable): ${chargeableWeight.toFixed(2)} kg   |   Total Koli: ${totalKoli} koli   |   Estimasi Biaya: ${formatRupiah(estimatedCost)}   |   Saran: ${rec.label}`, 18, boxY + 19);
 
                 doc.save(`Singaraja_CBM_${dateStr}.pdf`);
                 showToast(`File PDF (${dateStr}) berhasil diunduh`);
