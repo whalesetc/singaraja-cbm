@@ -772,9 +772,11 @@
                     headStyles: { fillColor: [14, 116, 144] },
                     didParseCell: (data) => {
                         if (data.row.index === tableBody.length - 1) {
+                            data.cell.styles.fontSize = 10.5;
                             data.cell.styles.fontStyle = 'bold';
                             data.cell.styles.fillColor = [226, 232, 240];
                             data.cell.styles.textColor = [15, 23, 42];
+                            data.cell.styles.cellPadding = { top: 4.5, right: 3, bottom: 4.5, left: 3 };
                         }
                     }
                 });
