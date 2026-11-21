@@ -731,7 +731,9 @@
                 const dateStr = getExportDateLabel();
 
                 doc.setFontSize(15);
+                doc.setFont(undefined, 'bold');
                 doc.text(`SINGARAJA CBM - LAPORAN PERHITUNGAN (TGL MASUK: ${dateStr})`, 14, 15);
+                doc.setFont(undefined, 'normal');
                 doc.setFontSize(10);
                 doc.text(`Total Koli: ${totalKoli}  |  Total CBM: ${totalCbm.toFixed(4)} m3  |  Berat Aktual: ${totalActualWeight.toFixed(2)} kg  |  Berat Vol: ${totalVolWeight.toFixed(2)} kg  |  Berat Tagih: ${chargeableWeight.toFixed(2)} kg`, 14, 22);
                 doc.text(`Estimasi Biaya: ${formatRupiah(estimatedCost)}  |  Rekomendasi Kontainer: ${rec.label}`, 14, 28);
@@ -778,24 +780,36 @@
                 });
 
                 const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 8 : 110;
-                const boxY = finalY + 18 > doc.internal.pageSize.getHeight() - 10 ? 20 : finalY;
+                const boxHeight = 30;
+                const boxY = finalY + boxHeight > doc.internal.pageSize.getHeight() - 10 ? 20 : finalY;
                 if (boxY === 20) {
                     doc.addPage();
                 }
 
                 doc.setDrawColor(14, 116, 144);
                 doc.setFillColor(240, 249, 255);
-                doc.roundedRect(14, boxY, 269, 24, 3, 3, 'FD');
+                doc.roundedRect(14, boxY, 269, boxHeight, 3, 3, 'FD');
 
-                doc.setFontSize(10);
+                doc.setFontSize(9.5);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(71, 85, 105);
+                doc.text(`RINCIAN TOTAL (TGL MASUK: ${dateStr})  •  Total Koli: ${totalKoli} koli`, 18, boxY + 6.5);
+
+                // Baris highlight Total CBM & Total KG (ukuran lebih besar & bold)
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(12, 74, 110);
+                doc.text(`Total CBM: ${totalCbm.toFixed(4)} m3`, 18, boxY + 15);
+
+                doc.setFontSize(11);
                 doc.setFont(undefined, 'bold');
                 doc.setTextColor(15, 23, 42);
-                doc.text(`RINCIAN TOTAL (TGL MASUK: ${dateStr})`, 18, boxY + 6);
+                doc.text(`Total Berat Aktual: ${totalActualWeight.toFixed(2)} kg   |   Berat Vol: ${totalVolWeight.toFixed(2)} kg   |   Berat Tagih: ${chargeableWeight.toFixed(2)} kg`, 92, boxY + 15);
 
                 doc.setFont(undefined, 'normal');
                 doc.setFontSize(9.5);
-                doc.text(`Total CBM: ${totalCbm.toFixed(4)} m3   |   Total Berat Aktual: ${totalActualWeight.toFixed(2)} kg   |   Total Berat Volumetrik: ${totalVolWeight.toFixed(2)} kg`, 18, boxY + 12.5);
-                doc.text(`Berat Tagih (Chargeable): ${chargeableWeight.toFixed(2)} kg   |   Total Koli: ${totalKoli} koli   |   Estimasi Biaya: ${formatRupiah(estimatedCost)}   |   Saran: ${rec.label}`, 18, boxY + 19);
+                doc.setTextColor(30, 41, 59);
+                doc.text(`Estimasi Biaya: ${formatRupiah(estimatedCost)}   |   Saran Kontainer: ${rec.label}`, 18, boxY + 24);
 
                 doc.save(`Singaraja_CBM_${dateStr}.pdf`);
                 showToast(`File PDF (${dateStr}) berhasil diunduh`);
