@@ -91,9 +91,13 @@
             </div>
         </header>
 
-        <!-- Tarif & Estimasi Biaya -->
+        <!-- Tanggal Masuk Batch, Tarif & Estimasi Biaya -->
         <section class="mb-6 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 shadow-lg">
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-cyan-300">Tanggal Barang Masuk (Diisi 1x)</label>
+                    <input id="batch-date" type="date" onchange="onBatchDateChange()" class="w-full rounded-xl border border-cyan-500/40 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-cyan-400 focus:outline-none">
+                </div>
                 <div>
                     <label class="mb-1 block text-xs font-medium text-slate-400">Tarif per CBM (Rp / m³)</label>
                     <input id="rate-cbm" type="number" min="0" step="any" value="0" oninput="saveAndRecalculate()" placeholder="Contoh: 1500000" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none">
@@ -158,14 +162,10 @@
                 </div>
             </div>
 
-            <form id="item-form" onsubmit="addItem(event)" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-8">
-                <div class="col-span-2 sm:col-span-2 lg:col-span-2">
+            <form id="item-form" onsubmit="addItem(event)" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
+                <div class="col-span-2 sm:col-span-3 lg:col-span-2">
                     <label class="mb-1 block text-xs font-medium text-slate-400">Nama Barang</label>
                     <input id="item-name" type="text" placeholder="Contoh: Head Unit / Speaker" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none">
-                </div>
-                <div class="col-span-2 sm:col-span-1 lg:col-span-1">
-                    <label class="mb-1 block text-xs font-medium text-slate-400">Tanggal Masuk</label>
-                    <input id="item-date" type="date" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-white focus:border-cyan-400 focus:outline-none">
                 </div>
                 <div>
                     <label class="mb-1 block text-xs font-medium text-slate-400">Panjang</label>
@@ -187,7 +187,7 @@
                     <label class="mb-1 block text-xs font-medium text-slate-400">Berat / Koli (kg)</label>
                     <input id="item-weight" type="number" step="any" min="0" value="0" placeholder="0" class="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none">
                 </div>
-                <div class="col-span-2 flex flex-wrap items-end gap-2 sm:col-span-3 lg:col-span-8">
+                <div class="col-span-2 flex flex-wrap items-end gap-2 sm:col-span-3 lg:col-span-7">
                     <button id="submit-btn" type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-cyan-400">
                         + Tambah Barang
                     </button>
@@ -250,6 +250,21 @@
             return /^\d{4}-\d{2}-\d{2}$/.test(clean) ? clean : getTodayIsoDate();
         }
 
+        function getActiveBatchDate() {
+            const el = document.getElementById('batch-date');
+            return sanitizeDateStr(el ? el.value : '');
+        }
+
+        function onBatchDateChange() {
+            const newDate = getActiveBatchDate();
+            document.getElementById('batch-date').value = newDate;
+            if (items.length > 0) {
+                items = items.map(it => ({ ...it, entryDate: newDate }));
+                showToast(`Tanggal masuk diperbarui ke ${newDate}`);
+            }
+            saveAndRecalculate();
+        }
+
         function showToast(message) {
             const toast = document.getElementById('toast');
             const toastMsg = document.getElementById('toast-msg');
@@ -267,6 +282,7 @@
             try {
                 const payload = {
                     items,
+                    batchDate: getActiveBatchDate(),
                     unit: document.getElementById('dim-unit').value,
                     divisor: document.getElementById('vol-divisor').value,
                     rateCbm: document.getElementById('rate-cbm').value,
@@ -283,10 +299,12 @@
                 const raw = localStorage.getItem(STORAGE_KEY);
                 if (!raw) return;
                 const data = JSON.parse(raw);
+                const savedBatchDate = sanitizeDateStr(data.batchDate || (Array.isArray(data.items) && data.items[0] && data.items[0].entryDate));
+                document.getElementById('batch-date').value = savedBatchDate;
                 if (Array.isArray(data.items)) {
                     items = data.items.map(it => ({
                         ...it,
-                        entryDate: sanitizeDateStr(it.entryDate)
+                        entryDate: sanitizeDateStr(it.entryDate || savedBatchDate)
                     }));
                 }
                 if (data.unit) document.getElementById('dim-unit').value = data.unit;
@@ -317,10 +335,8 @@
             return n / 10; // mm
         }
 
-        function resetFormInputs(keepDate = false) {
-            const currentDate = document.getElementById('item-date').value;
+        function resetFormInputs() {
             document.getElementById('item-name').value = '';
-            document.getElementById('item-date').value = keepDate && currentDate ? sanitizeDateStr(currentDate) : getTodayIsoDate();
             document.getElementById('item-l').value = '';
             document.getElementById('item-w').value = '';
             document.getElementById('item-h').value = '';
@@ -336,7 +352,7 @@
             e.preventDefault();
             const rawName = document.getElementById('item-name').value.trim();
             const name = rawName || `Barang #${items.length + 1}`;
-            const entryDate = sanitizeDateStr(document.getElementById('item-date').value);
+            const entryDate = getActiveBatchDate();
             const l = parseFloat(document.getElementById('item-l').value) || 0;
             const w = parseFloat(document.getElementById('item-w').value) || 0;
             const h = parseFloat(document.getElementById('item-h').value) || 0;
@@ -345,7 +361,7 @@
 
             if (editingId !== null) {
                 items = items.map(it => it.id === editingId ? { ...it, name, entryDate, l, w, h, qty, weightPerUnit } : it);
-                resetFormInputs(false);
+                resetFormInputs();
                 saveAndRecalculate();
                 showToast(`"${name}" diperbarui`);
                 return;
@@ -362,7 +378,7 @@
                 weightPerUnit
             });
 
-            resetFormInputs(true);
+            resetFormInputs();
             document.getElementById('item-name').focus();
             saveAndRecalculate();
             showToast(`"${name}" (${entryDate}) ditambahkan`);
@@ -373,7 +389,7 @@
             if (!target) return;
             editingId = id;
             document.getElementById('item-name').value = target.name;
-            document.getElementById('item-date').value = sanitizeDateStr(target.entryDate);
+            document.getElementById('batch-date').value = sanitizeDateStr(target.entryDate || getActiveBatchDate());
             document.getElementById('item-l').value = target.l;
             document.getElementById('item-w').value = target.w;
             document.getElementById('item-h').value = target.h;
@@ -386,50 +402,43 @@
         }
 
         function cancelEdit() {
-            resetFormInputs(false);
+            resetFormInputs();
             showToast('Edit dibatalkan');
         }
 
         function removeItem(id) {
-            if (editingId === id) resetFormInputs(false);
+            if (editingId === id) resetFormInputs();
             items = items.filter(it => it.id !== id);
             saveAndRecalculate();
             showToast('Barang dihapus');
         }
 
         function clearAllItems() {
-            if (!items.length) return;
             items = [];
-            resetFormInputs(false);
+            editingId = null;
+            document.getElementById('batch-date').value = getTodayIsoDate();
+            resetFormInputs();
             saveAndRecalculate();
-            showToast('Semua data barang dibersihkan');
+            showToast('Semua data & tanggal direset ke hari ini');
         }
 
         function loadSampleData() {
             document.getElementById('dim-unit').value = 'cm';
             document.getElementById('rate-cbm').value = '1500000';
             document.getElementById('rate-kg').value = '5000';
-            const sampleDate = sanitizeDateStr(document.getElementById('item-date').value);
+            const sampleDate = getActiveBatchDate();
             items = [
                 { id: 1, name: 'Subwoofer Box 12 Inch', entryDate: sampleDate, l: 60, w: 40, h: 35, qty: 4, weightPerUnit: 18.5 },
                 { id: 2, name: 'Power Amplifier 4ch', entryDate: sampleDate, l: 45, w: 28, h: 10, qty: 10, weightPerUnit: 4.2 },
                 { id: 3, name: 'Peredam Suara Roll', entryDate: sampleDate, l: 80, w: 50, h: 15, qty: 6, weightPerUnit: 12.0 }
             ];
-            resetFormInputs(false);
+            resetFormInputs();
             saveAndRecalculate();
             showToast('Contoh data Singaraja CBM dimuat');
         }
 
         function getExportDateLabel() {
-            const dates = items
-                .map(it => sanitizeDateStr(it.entryDate))
-                .filter(Boolean)
-                .sort();
-            if (!dates.length) {
-                const inputDate = document.getElementById('item-date').value;
-                return sanitizeDateStr(inputDate);
-            }
-            return dates[dates.length - 1];
+            return getActiveBatchDate();
         }
 
         function computeMetrics() {
@@ -437,6 +446,7 @@
             const divisor = parseFloat(document.getElementById('vol-divisor').value) || 5000;
             const rateCbm = parseFloat(document.getElementById('rate-cbm').value) || 0;
             const rateKg = parseFloat(document.getElementById('rate-kg').value) || 0;
+            const activeDate = getActiveBatchDate();
 
             let totalCbm = 0;
             let totalKoli = 0;
@@ -466,7 +476,7 @@
                     id: it.id,
                     no: idx + 1,
                     name: it.name,
-                    entryDate: sanitizeDateStr(it.entryDate),
+                    entryDate: sanitizeDateStr(it.entryDate || activeDate),
                     dimLabel: `${it.l} × ${it.w} × ${it.h} ${unit}`,
                     qty: it.qty,
                     weightPerUnit: it.weightPerUnit,
@@ -759,7 +769,7 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('item-date').value = getTodayIsoDate();
+            document.getElementById('batch-date').value = getTodayIsoDate();
             loadState();
             recalculate();
         });
