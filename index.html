@@ -754,7 +754,7 @@
                 tableBody.push([
                     '',
                     'TOTAL',
-                    dateStr,
+                    '',
                     `${items.length} jenis`,
                     totalKoli,
                     '-',
@@ -795,7 +795,7 @@
                 doc.setFontSize(9.5);
                 doc.setFont(undefined, 'bold');
                 doc.setTextColor(71, 85, 105);
-                doc.text(`RINCIAN TOTAL (TGL MASUK: ${dateStr})  •  Total Koli: ${totalKoli} koli`, 18, boxY + 6.5);
+                doc.text(`RINCIAN TOTAL  •  Total Koli: ${totalKoli} koli`, 18, boxY + 6.5);
 
                 // Baris highlight Total CBM & Total KG (ukuran lebih besar & bold)
                 doc.setFontSize(12);
